@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "JP_MM_Engineering_Dictionary",
-    "slug": "JP_MM_Engineering_Dictionary",
+    "name": "JP-MM (Engineering_Dictionary)",
+    "slug": "jp_mm_engineering_dictionary",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -13,11 +13,21 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.minthwaykhaing.jpmm",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
     },
     "android": {
+      "package": "com.minthwaykhaing.jpmm",
+      "versionCode": 1,
+      "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -25,6 +35,20 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "description": "JP-MM Engineering Dictionary app for Japanese-English-Myanmar technical terms",
+    "platforms": [
+      "android",
+      "ios",
+      "web"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4d9d447d-95d3-4f62-955b-b5ed3b102105"
+      }
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

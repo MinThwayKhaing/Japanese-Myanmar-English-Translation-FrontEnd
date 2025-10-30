@@ -1,20 +1,28 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+// App.tsx
+import React, { useContext, useEffect } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { AuthProvider, AuthContext } from './src/context/AuthContext';
+import AppNavigator from './src/navigation/AppNavigator';
+import { navigationRef } from './src/navigation/RootNavigation';
+import { setLogoutHandler } from './src/services/axiosInstance';
+
+const AppWrapper = () => {
+  const { logout } = useContext(AuthContext);
+
+  useEffect(() => {
+    // Provide logout function to axiosInstance for 401 handling
+    setLogoutHandler(logout);
+  }, [logout]);
+
+  return <AppNavigator />;
+};
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <AuthProvider>
+      <NavigationContainer ref={navigationRef}>
+        <AppWrapper />
+      </NavigationContainer>
+    </AuthProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
