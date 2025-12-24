@@ -6,8 +6,9 @@ import {
   ActivityIndicator,
   ScrollView,
   TouchableOpacity,
-  Alert,
+  Image,
   Platform,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -38,7 +39,6 @@ export default function UserWordDetail() {
           WordService.getWordByID(id, savedToken),
           UserService.getFavorites(savedToken),
         ]);
-
         setWord(wordData);
 
         const favList = Array.isArray(favoritesData) ? favoritesData : [];
@@ -66,7 +66,7 @@ export default function UserWordDetail() {
       }
     } catch (error) {
       console.error('Error updating favorite:', error);
-      Alert.alert('Error', 'Failed to update favorite status.');
+      alert('Failed to update favorite status.');
     }
   };
 
@@ -88,36 +88,52 @@ export default function UserWordDetail() {
 
   return (
     <SafeAreaView style={styles.safeContainer}>
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={Colors.primary} />
-          <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
+        <Text style={styles.headerText}>Word Detail</Text>
+      </View>
 
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>{word.japanese || '-'}</Text>
-          <TouchableOpacity onPress={toggleFavorite}>
-            <Ionicons
-              name={isFavorite ? 'heart' : 'heart-outline'}
-              size={28}
-              color={isFavorite ? 'red' : Colors.primary}
-            />
-          </TouchableOpacity>
-        </View>
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <View style={styles.card}>
+          {word.imageUrl ? (
+            <Image source={{ uri: word.imageUrl }} style={styles.image} resizeMode="cover" />
+          ) : (
+            <View style={styles.noImageBox}>
+              <Ionicons name="image-outline" size={60} color={Colors.grayLight} />
+              <Text style={{ color: Colors.grayLight }}>No Image</Text>
+            </View>
+          )}
 
-        {word.subTerm && <Text style={styles.subTerm}>({word.subTerm})</Text>}
-
-        <View style={styles.row}>
-          <Text style={styles.label}>English:</Text>
-          <Text style={styles.value}>{word.english || '-'}</Text>
-        </View>
-
-        {word.myanmar && (
-          <View style={styles.row}>
-            <Text style={styles.label}>Myanmar:</Text>
-            <Text style={styles.value}>{word.myanmar || '-'}</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>{word.japanese || '-'}</Text>
+            <TouchableOpacity onPress={toggleFavorite}>
+              <Ionicons
+                name={isFavorite ? 'heart' : 'heart-outline'}
+                size={28}
+                color={isFavorite ? 'red' : Colors.primary}
+              />
+            </TouchableOpacity>
           </View>
-        )}
+
+          {word.subTerm && <Text style={styles.subTerm}>({word.subTerm})</Text>}
+
+          <View style={styles.row}>
+            <Text style={styles.label}>English:</Text>
+            <Text style={styles.value}>{word.english || '-'}</Text>
+          </View>
+
+          {word.myanmar && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Myanmar:</Text>
+              <Text style={styles.value}>{word.myanmar || '-'}</Text>
+            </View>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -129,19 +145,34 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
     paddingTop: Platform.OS === 'android' ? 0 : 0,
   },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
-  notFoundText: { fontSize: 18, color: Colors.grayLight },
-  backBtn: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  backText: { fontSize: 16, color: Colors.primary, marginLeft: 6 },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, paddingHorizontal: 16 },
+  headerText: { fontSize: 22, fontWeight: 'bold', color: Colors.primary, marginLeft: 12 },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  title: { fontSize: 28, fontWeight: 'bold', color: Colors.primary },
-  subTerm: { fontSize: 18, color: Colors.grayLight, marginBottom: 20 },
-  row: { flexDirection: 'row', marginBottom: 14 },
+  image: { width: '100%', height: 220, borderRadius: 10, marginBottom: 20 },
+  noImageBox: {
+    width: '100%',
+    height: 220,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 10,
+    backgroundColor: '#f9f9f9',
+    marginBottom: 20,
+  },
+  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  title: { fontSize: 26, fontWeight: 'bold', color: Colors.primary },
+  subTerm: { fontSize: 16, color: Colors.grayLight, marginBottom: 16 },
+  row: { flexDirection: 'row', marginBottom: 10 },
   label: { fontWeight: 'bold', fontSize: 16, width: 100, color: Colors.primary },
   value: { fontSize: 16, flex: 1, color: '#333' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
+  notFoundText: { fontSize: 18, color: Colors.grayLight },
 });

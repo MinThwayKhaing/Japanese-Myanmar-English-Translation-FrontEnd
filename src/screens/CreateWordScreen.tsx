@@ -9,10 +9,13 @@ import {
   StatusBar,
   Platform,
   ScrollView,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { WordService, Word } from '../services/wordService';
+import { WordService } from '../services/wordService';
 import { Colors } from '../constants/colors';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,11 +23,11 @@ import { Ionicons } from '@expo/vector-icons';
 const CreateWordScreen = () => {
   const navigation = useNavigation();
   const [token, setToken] = useState<string | null>(null);
-
+  const [english, setEnglish] = useState('');
   const [japanese, setJapanese] = useState('');
   const [subTerm, setSubTerm] = useState('');
-  const [english, setEnglish] = useState('');
   const [myanmar, setMyanmar] = useState('');
+  const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -34,6 +37,24 @@ const CreateWordScreen = () => {
     };
     init();
   }, []);
+
+  const pickImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission required', 'Please allow access to your photos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.7,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      setImage(result.assets[0].uri);
+    }
+  };
 
   const handleCreate = async () => {
     if (!token) {
@@ -46,16 +67,22 @@ const CreateWordScreen = () => {
       return;
     }
 
-    const newWord: Word = {
-      english: english.trim(),
-      japanese: japanese.trim() || undefined,
-      subTerm: subTerm.trim() || undefined,
-      myanmar: myanmar.trim() || undefined,
-    };
+    const formData = new FormData();
+    formData.append('english', english.trim());
+    formData.append('japanese', japanese.trim());
+    formData.append('subTerm', subTerm.trim());
+    formData.append('myanmar', myanmar.trim());
+
+    if (image) {
+      const filename = image.split('/').pop()!;
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : `image`;
+      formData.append('image', { uri: image, name: filename, type } as any);
+    }
 
     try {
       setLoading(true);
-      await WordService.createWord(newWord, token);
+      await WordService.createWord(formData, token);
       Alert.alert('Success', 'Word created successfully', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
@@ -110,12 +137,21 @@ const CreateWordScreen = () => {
           onChangeText={setMyanmar}
         />
 
+        <Text style={styles.label}>Image (optional)</Text>
+        <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
+          {image ? (
+            <Image source={{ uri: image }} style={styles.previewImage} />
+          ) : (
+            <Text style={styles.imageText}>Select Image</Text>
+          )}
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={[styles.createButton, loading && { opacity: 0.7 }]}
           onPress={handleCreate}
           disabled={loading}
         >
-          <Text style={styles.createText}>{loading ? 'Creating...' : 'Create Word'}</Text>
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.createText}>Create Word</Text>}
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -142,6 +178,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
+  imagePicker: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    height: 140,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f9f9f9',
+  },
+  imageText: { color: '#888' },
+  previewImage: { width: '100%', height: '100%', borderRadius: 10 },
   createButton: {
     backgroundColor: Colors.primary,
     marginTop: 24,

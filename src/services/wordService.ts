@@ -2,6 +2,7 @@ import axiosInstance from './axiosInstance';
 import { API_BASE_URL } from '../config';
 
 export interface Word {
+  imageUrl : any;
   _id?: string;
   english: string;
   japanese?: string;
@@ -44,6 +45,7 @@ export const WordService = {
     const res = await axiosInstance.get(`${API_BASE_URL}/words/${id}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
+    console.log('getWordByID response data:', res.data);
     return res.data;
   },
 
@@ -63,19 +65,26 @@ export const WordService = {
     return res.data;
   },
 
-  createWord: async (word: Word, token: string): Promise<Word> => {
-    const res = await axiosInstance.post(`${API_BASE_URL}/words`, word, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return res.data;
-  },
+createWord: async (formData: FormData, token: string): Promise<any> => {
+  const res = await axiosInstance.post(`${API_BASE_URL}/words`, formData, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return res.data;
+},
 
-  updateWord: async (id: string, word: Word, token: string): Promise<Word> => {
-    const res = await axiosInstance.put(`${API_BASE_URL}/words/${id}`, word, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return res.data;
-  },
+updateWord: async (id: string, formData: FormData, token: string): Promise<any> => {
+  const res = await axiosInstance.put(`${API_BASE_URL}/words/${id}`, formData, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return res.data;
+},
+
 
   deleteWord: async (id: string, token: string): Promise<void> => {
     console.log('Deleting word with ID:', id);

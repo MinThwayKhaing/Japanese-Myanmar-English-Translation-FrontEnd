@@ -46,26 +46,35 @@ export default function LoginScreen({ navigation }: any) {
     loadSavedCredentials();
   }, []);
 
-  const handleLogin = async () => {
-    setLoading(true);
-    try {
-      const { token, role } = await AuthService.login(email, password);
-      setAuth(token, role);
+const handleLogin = async () => {
+  setLoading(true);
 
-      // Save or remove credentials based on rememberMe
-      if (rememberMe) {
-        await AsyncStorage.setItem('savedEmail', email);
-        await AsyncStorage.setItem('savedPassword', password);
-      } else {
-        await AsyncStorage.removeItem('savedEmail');
-        await AsyncStorage.removeItem('savedPassword');
-      }
-    } catch (err) {
-      Alert.alert('Error', 'Invalid credentials');
-    } finally {
-      setLoading(false);
+  try {
+    const { token, role } = await AuthService.login(email, password);
+    setAuth(token, role);
+
+    if (rememberMe) {
+      await AsyncStorage.setItem('savedEmail', email);
+      await AsyncStorage.setItem('savedPassword', password);
+    } else {
+      await AsyncStorage.removeItem('savedEmail');
+      await AsyncStorage.removeItem('savedPassword');
     }
-  };
+
+  } catch (err: any) {
+    // 🔍 Log backend error to console
+    console.error('Login error:', err);
+
+    if (err.status === 401) {
+      Alert.alert('Login Failed', 'Email or password is incorrect');
+    } else {
+      Alert.alert('Server Error', 'Something went wrong. Please try again later.');
+    }
+  } finally {
+    setLoading(false);
+  }
+};
+
 
 
   return (
@@ -97,7 +106,7 @@ export default function LoginScreen({ navigation }: any) {
             </Text>
 
             {/* Email Label */}
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>Email </Text>
             <TextInput
               placeholder="Email"
               placeholderTextColor={Colors.textSecondary}
