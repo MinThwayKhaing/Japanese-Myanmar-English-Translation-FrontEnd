@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
     backgroundColor: Colors.background,
-    paddingTop: Platform.OS === 'android' ? 0 : 0,
+    padding: 20,
   },
   header: {
     flexDirection: 'row',

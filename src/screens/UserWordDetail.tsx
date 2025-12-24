@@ -17,6 +17,7 @@ import { UserService } from '../services/UserService';
 import { Colors } from '../constants/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import * as Speech from 'expo-speech';
 
 export default function UserWordDetail() {
   const route = useRoute<any>();
@@ -39,12 +40,13 @@ export default function UserWordDetail() {
           WordService.getWordByID(id, savedToken),
           UserService.getFavorites(savedToken),
         ]);
+
         setWord(wordData);
 
         const favList = Array.isArray(favoritesData) ? favoritesData : [];
         setIsFavorite(favList.some((fav: any) => fav.id === id));
       } catch (err) {
-        console.error('Failed to fetch word or favorites:', err);
+        console.error('Failed to fetch word:', err);
       } finally {
         setLoading(false);
       }
@@ -52,6 +54,18 @@ export default function UserWordDetail() {
 
     init();
   }, [id]);
+
+  // 🔊 Japanese Text-to-Speech
+  const speakJapanese = (text?: string) => {
+    if (!text) return;
+
+    Speech.stop();
+    Speech.speak(text, {
+      language: 'ja-JP',
+      rate: 0.9,
+      pitch: 1.0,
+    });
+  };
 
   const toggleFavorite = async () => {
     if (!token) return;
@@ -65,8 +79,7 @@ export default function UserWordDetail() {
         setIsFavorite(true);
       }
     } catch (error) {
-      console.error('Error updating favorite:', error);
-      alert('Failed to update favorite status.');
+      console.error('Favorite error:', error);
     }
   };
 
@@ -101,7 +114,7 @@ export default function UserWordDetail() {
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         <View style={styles.card}>
           {word.imageUrl ? (
-            <Image source={{ uri: word.imageUrl }} style={styles.image} resizeMode="cover" />
+            <Image source={{ uri: word.imageUrl }} style={styles.image} />
           ) : (
             <View style={styles.noImageBox}>
               <Ionicons name="image-outline" size={60} color={Colors.grayLight} />
@@ -109,8 +122,23 @@ export default function UserWordDetail() {
             </View>
           )}
 
+          {/* Japanese title + speaker */}
           <View style={styles.titleRow}>
-            <Text style={styles.title}>{word.japanese || '-'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.title}>{word.japanese || '-'}</Text>
+
+              <TouchableOpacity
+                style={{ marginLeft: 10 }}
+                onPress={() => speakJapanese(word.japanese)}
+              >
+                <Ionicons
+                  name="volume-high-outline"
+                  size={26}
+                  color={Colors.primary}
+                />
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity onPress={toggleFavorite}>
               <Ionicons
                 name={isFavorite ? 'heart' : 'heart-outline'}
@@ -120,17 +148,19 @@ export default function UserWordDetail() {
             </TouchableOpacity>
           </View>
 
-          {word.subTerm && <Text style={styles.subTerm}>({word.subTerm})</Text>}
+          {word.subTerm && (
+            <Text style={styles.subTerm}>({word.subTerm})</Text>
+          )}
 
           <View style={styles.row}>
             <Text style={styles.label}>English:</Text>
-            <Text style={styles.value}>{word.english || '-'}</Text>
+            <Text style={styles.value}>{word.english}</Text>
           </View>
 
           {word.myanmar && (
             <View style={styles.row}>
               <Text style={styles.label}>Myanmar:</Text>
-              <Text style={styles.value}>{word.myanmar || '-'}</Text>
+              <Text style={styles.value}>{word.myanmar}</Text>
             </View>
           )}
         </View>
@@ -143,36 +173,73 @@ const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
     backgroundColor: Colors.background,
-    paddingTop: Platform.OS === 'android' ? 0 : 0,
   },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, paddingHorizontal: 16 },
-  headerText: { fontSize: 22, fontWeight: 'bold', color: Colors.primary, marginLeft: 12 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  headerText: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: Colors.primary,
+    marginLeft: 12,
+  },
   card: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  image: { width: '100%', height: 220, borderRadius: 10, marginBottom: 20 },
-  noImageBox: {
+  image: {
     width: '100%',
+    height: 220,
+    borderRadius: 10,
+    marginBottom: 20,
+  },
+  noImageBox: {
     height: 220,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 10,
     backgroundColor: '#f9f9f9',
+    borderRadius: 10,
     marginBottom: 20,
   },
-  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  title: { fontSize: 26, fontWeight: 'bold', color: Colors.primary },
-  subTerm: { fontSize: 16, color: Colors.grayLight, marginBottom: 16 },
-  row: { flexDirection: 'row', marginBottom: 10 },
-  label: { fontWeight: 'bold', fontSize: 16, width: 100, color: Colors.primary },
-  value: { fontSize: 16, flex: 1, color: '#333' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
-  notFoundText: { fontSize: 18, color: Colors.grayLight },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: Colors.primary,
+  },
+  subTerm: {
+    fontSize: 16,
+    color: Colors.grayLight,
+    marginVertical: 8,
+  },
+  row: {
+    flexDirection: 'row',
+    marginBottom: 10,
+  },
+  label: {
+    width: 100,
+    fontWeight: 'bold',
+    color: Colors.primary,
+  },
+  value: {
+    flex: 1,
+    fontSize: 16,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notFoundText: {
+    fontSize: 18,
+    color: Colors.grayLight,
+  },
 });

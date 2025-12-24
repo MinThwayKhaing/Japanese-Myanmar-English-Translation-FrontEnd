@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor:  Colors.background,
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'android' ? 0 : 0,
+    padding: 20,
   },
   header: {
     flexDirection: 'row',
