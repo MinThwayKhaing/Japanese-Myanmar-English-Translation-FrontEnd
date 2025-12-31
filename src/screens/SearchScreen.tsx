@@ -10,55 +10,61 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WordService } from '../services/wordService';
 import { UserService } from '../services/UserService';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import KanjiDrawer from '../components/KanjiDrawer';
+import { Colors } from '../constants/colors';
 
 export default function SearchScreen() {
   const navigation = useNavigation<any>();
+
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
-  const isMounted = useRef(true); // for safe cleanup
+  const [showDrawer, setShowDrawer] = useState(false);
 
-  // ✅ Fetch favorites when screen is focused
+  const isMounted = useRef(true);
+  const inputRef = useRef<TextInput>(null);
+
+  /* ---------------- FAVORITES ---------------- */
   useFocusEffect(
     React.useCallback(() => {
-      let isActive = true;
+      let active = true;
 
       const fetchFavorites = async () => {
         const token = await AsyncStorage.getItem('token');
         if (!token) return;
         try {
           const favs = await UserService.getFavorites(token);
-          if (isActive && Array.isArray(favs)) {
+          if (active && Array.isArray(favs)) {
             setFavorites(favs.map((f: any) => f.id));
           }
         } catch (err) {
-          console.error('Error loading favorites:', err);
+          console.error(err);
         }
       };
 
       fetchFavorites();
-
       return () => {
-        isActive = false;
+        active = false;
       };
-    }, [navigation])
+    }, [])
   );
 
-  // ✅ Handle search query
+  /* ---------------- SEARCH ---------------- */
   useEffect(() => {
-    if (query.trim() === '') {
+    if (!query.trim()) {
       setResults([]);
       return;
     }
 
-    const timeout = setTimeout(async () => {
+    const t = setTimeout(async () => {
       if (!isMounted.current) return;
       setLoading(true);
       try {
@@ -66,46 +72,49 @@ export default function SearchScreen() {
         if (isMounted.current) {
           setResults(Array.isArray(data) ? data : []);
         }
-      } catch (error) {
-        console.error('Search error:', error);
+      } catch (err) {
+        console.error(err);
         if (isMounted.current) setResults([]);
       } finally {
         if (isMounted.current) setLoading(false);
       }
     }, 400);
 
-    return () => clearTimeout(timeout);
+    return () => clearTimeout(t);
   }, [query]);
 
-  // ✅ Toggle favorite handler
+  /* ---------------- FAVORITE ---------------- */
   const toggleFavorite = async (wordId: string) => {
     const token = await AsyncStorage.getItem('token');
-    if (!token) {
-      alert('Please log in to save favorites');
-      return;
-    }
+    if (!token) return;
 
-    try {
-      if (favorites.includes(wordId)) {
-        await UserService.removeFavorite(wordId, token);
-        setFavorites((prev) => prev.filter((id) => id !== wordId));
-      } else {
-        await UserService.addFavorite(wordId, token);
-        setFavorites((prev) => [...prev, wordId]);
-      }
-    } catch (err) {
-      console.error('Favorite toggle failed:', err);
+    if (favorites.includes(wordId)) {
+      await UserService.removeFavorite(wordId, token);
+      setFavorites((p) => p.filter((id) => id !== wordId));
+    } else {
+      await UserService.addFavorite(wordId, token);
+      setFavorites((p) => [...p, wordId]);
     }
   };
 
-  // ✅ Cleanup memory when screen unmounts
+  /* ---------------- KANJI HANDLER ---------------- */
+  const handleKanjiRecognized = (kanji: string) => {
+    setQuery((prev) => prev + kanji);
+    setShowDrawer(false);
+    inputRef.current?.focus();
+  };
+
+  const toggleDrawer = () => {
+    if (!showDrawer) {
+      Keyboard.dismiss();
+    }
+    setShowDrawer((p) => !p);
+  };
+
+  /* ---------------- CLEANUP ---------------- */
   useEffect(() => {
     return () => {
       isMounted.current = false;
-      setQuery('');
-      setResults([]);
-      setFavorites([]);
-      setLoading(false);
     };
   }, []);
 
@@ -116,13 +125,25 @@ export default function SearchScreen() {
     >
       <Image source={require('../../assets/logo.png')} style={styles.logo} />
 
-      <TextInput
-        placeholder="Search Japanese, English, or Myanmar..."
-        placeholderTextColor="#888"
-        style={styles.input}
-        value={query}
-        onChangeText={setQuery}
-      />
+      {/* 🔍 Search Input with Kanji Icon */}
+      <View style={styles.inputWrapper}>
+        <TextInput
+          ref={inputRef}
+          placeholder="Search Japanese, English, or Myanmar..."
+          placeholderTextColor="#888"
+          style={styles.input}
+          value={query}
+          onChangeText={setQuery}
+          onFocus={() => setShowDrawer(false)}
+        />
+
+        <TouchableOpacity onPress={toggleDrawer} style={styles.kanjiIcon}>
+          <Icon name="draw" size={22} color="#1A374D" />
+        </TouchableOpacity>
+      </View>
+
+      {/* ✍️ Kanji Drawer */}
+      {showDrawer && <KanjiDrawer onRecognized={handleKanjiRecognized} />}
 
       {loading && <ActivityIndicator size="large" color="#1A374D" style={{ marginTop: 20 }} />}
 
@@ -132,24 +153,18 @@ export default function SearchScreen() {
 
       <FlatList
         data={results}
-        keyExtractor={(item, index) => item.id || index.toString()}
+        keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
           const isFav = favorites.includes(item.id);
           return (
             <View style={styles.card}>
               <TouchableOpacity
-                activeOpacity={0.8}
                 style={{ flex: 1 }}
                 onPress={() => navigation.navigate('UserWordDetail', { id: item.id })}
               >
-                <View style={styles.wordContainer}>
-                  <Text style={styles.japaneseText}>
-                    {item.japanese}
-                    {item.subTerm ? <Text style={styles.subTermText}>（{item.subTerm}）</Text> : null}
-                  </Text>
-                  {item.myanmar ? <Text style={styles.myanmarText}>{item.myanmar}</Text> : null}
-                  {item.english ? <Text style={styles.englishText}>{item.english}</Text> : null}
-                </View>
+                <Text style={styles.japaneseText}>{item.japanese}</Text>
+                {item.myanmar && <Text style={styles.myanmarText}>{item.myanmar}</Text>}
+                {item.english && <Text style={styles.englishText}>{item.english}</Text>}
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
@@ -157,7 +172,6 @@ export default function SearchScreen() {
                   name={isFav ? 'heart' : 'heart-outline'}
                   size={26}
                   color={isFav ? '#E63946' : '#999'}
-                  style={{ marginLeft: 8 }}
                 />
               </TouchableOpacity>
             </View>
@@ -169,18 +183,30 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FDFBF6', padding: 16 },
+  container: { flex: 1,     backgroundColor:  Colors.background  ,  paddingHorizontal: 16,
+    padding: 20,},
   logo: { width: 80, height: 80, borderRadius: 40, alignSelf: 'center', marginVertical: 30 },
-  input: {
-    backgroundColor: '#fff',
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    fontSize: 15,
+
+  inputWrapper: {
+    position: 'relative',
     marginBottom: 10,
   },
+  input: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    paddingRight: 45,
+    paddingVertical: 10,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  kanjiIcon: {
+    position: 'absolute',
+    right: 12,
+    top: 10,
+  },
+
   noResult: { textAlign: 'center', color: '#999', marginTop: 20 },
   card: {
     backgroundColor: '#fff',
@@ -190,11 +216,8 @@ const styles = StyleSheet.create({
     elevation: 2,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
-  wordContainer: { alignItems: 'flex-start', flex: 1 },
   japaneseText: { fontSize: 24, fontWeight: 'bold', color: '#1A374D' },
-  subTermText: { fontSize: 16, color: '#666', fontWeight: '400' },
-  myanmarText: { fontSize: 18, color: '#333', marginTop: 6 },
-  englishText: { fontSize: 17, color: '#555', marginTop: 4 },
+  myanmarText: { fontSize: 18, marginTop: 6 },
+  englishText: { fontSize: 17, marginTop: 4 },
 });

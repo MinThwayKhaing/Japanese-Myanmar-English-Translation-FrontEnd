@@ -16,7 +16,9 @@
     },
     "production": {
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease",
+        "autoIncrement": true
       },
       "ios": {
         "enterpriseProvisioning": "universal",

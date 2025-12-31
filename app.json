@@ -2,7 +2,7 @@
   "expo": {
     "name": "JP-MM (Engineering_Dictionary)",
     "slug": "jp_mm_engineering_dictionary",
-    "version": "1.0.0",
+    "version": "1.1.1",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
@@ -24,7 +24,7 @@
     },
     "android": {
       "package": "com.minthwaykhaing.jpmm",
-      "versionCode": 1,
+      "versionCode": 4,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
