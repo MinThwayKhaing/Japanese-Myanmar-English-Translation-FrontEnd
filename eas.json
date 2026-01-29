@@ -21,7 +21,6 @@
         "autoIncrement": true
       },
       "ios": {
-        "enterpriseProvisioning": "universal",
         "autoIncrement": true
       }
     },

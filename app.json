@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "UST JP-MM Engineering Dictionary",
+    "name": "UST JP-MM Dictionary",
     "slug": "jp_mm_engineering_dictionary",
     "version": "1.1.3",
     "orientation": "portrait",
@@ -19,7 +19,8 @@
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
-        }
+        },
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -37,12 +38,18 @@
       "favicon": "./assets/favicon.png"
     },
     "description": "JP-MM Engineering Dictionary app for Japanese-English-Myanmar technical terms",
-    "platforms": ["android", "ios", "web"],
+    "platforms": [
+      "android",
+      "ios",
+      "web"
+    ],
     "extra": {
       "eas": {
         "projectId": "4d9d447d-95d3-4f62-955b-b5ed3b102105"
       }
     },
-    "plugins": ["expo-font"]
+    "plugins": [
+      "expo-font"
+    ]
   }
 }
