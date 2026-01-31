@@ -90,4 +90,18 @@ getProfile: async (token: string) => {
     });
     return res.data;
   },
+  /**
+ * Delete own user account
+ * @param token - user auth token
+ */
+deleteMe: async (token: string) => {
+  const res = await axiosInstance.delete(
+    `${API_BASE_URL}/users/me`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+  return res.data;
+},
+
 };

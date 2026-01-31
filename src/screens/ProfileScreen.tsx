@@ -9,6 +9,8 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
+import { Alert } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -47,6 +49,34 @@ setUser(data); // <-- directly use the API response
 
     fetchUser();
   }, []);
+
+  const onDeleteAccount = async () => {
+  if (!token) return;
+
+  Alert.alert(
+    'Delete Account',
+    'This action is permanent and cannot be undone. Are you sure?',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await UserService.deleteMe(token);
+
+            // clear auth
+            await AsyncStorage.removeItem('token');
+            setAuth(null, null);
+          } catch (err) {
+            Alert.alert('Error', 'Failed to delete account. Please try again.');
+            console.error(err);
+          }
+        },
+      },
+    ]
+  );
+};
 
   const onLogout = async () => {
     await AsyncStorage.removeItem('token');
@@ -106,6 +136,13 @@ setUser(data); // <-- directly use the API response
 </TouchableOpacity>
 
         </View>
+          {/* Delete Account Button */}
+<TouchableOpacity style={styles.deleteButton} onPress={onDeleteAccount}>
+  <View style={styles.deleteContent}>
+    <Ionicons name="trash-outline" size={20} color={Colors.error} />
+    <Text style={styles.deleteText}>Delete Account</Text>
+  </View>
+</TouchableOpacity>
 
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
@@ -157,5 +194,28 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 20,
   },
+ deleteButton: {
+  backgroundColor: Colors.white,
+  paddingVertical: 12,
+  borderRadius: 8,
+  marginTop: 24,
+  borderWidth: 1,
+  borderColor: Colors.error,
+},
+
+deleteContent: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+
+deleteText: {
+  color: Colors.error,
+  fontWeight: 'bold',
+  fontSize: 16,
+  marginLeft: 8, // move spacing here instead of icon margin
+},
+
+
   logoutText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 });
