@@ -13,11 +13,23 @@ import {
   Image,
   Alert,
 } from 'react-native';
+
+import { Ionicons, AntDesign } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+
 import { AuthContext } from '../context/AuthContext';
 import { AuthService } from '../services/authService';
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GoogleAuthService } from '../services/googleAuthService';
 import { Colors, Fonts } from '../constants/colors';
+import {
+  GOOGLE_WEB_CLIENT_ID,
+  GOOGLE_IOS_CLIENT_ID,
+  GOOGLE_ANDROID_CLIENT_ID,
+} from '../config';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen({ navigation }: any) {
   const { setAuth } = useContext(AuthContext);
@@ -27,120 +39,132 @@ export default function LoginScreen({ navigation }: any) {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  // Load saved credentials on mount
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+  });
+
   useEffect(() => {
-    const loadSavedCredentials = async () => {
-      try {
-        const savedEmail = await AsyncStorage.getItem('savedEmail');
-        const savedPassword = await AsyncStorage.getItem('savedPassword');
-        if (savedEmail && savedPassword) {
-          setEmail(savedEmail);
-          setPassword(savedPassword);
-          setRememberMe(true);
-        }
-      } catch (err) {
-        console.error('Failed to load saved credentials', err);
+    if (response?.type === 'success') {
+      const idToken = response.params.id_token;
+      if (idToken) {
+        handleGoogleLoginWithToken(idToken);
+      } else {
+        Alert.alert('Error', 'Failed to get ID token from Google');
+      }
+    }
+  }, [response]);
+
+  const handleGoogleLoginWithToken = async (idToken: string) => {
+    setGoogleLoading(true);
+    try {
+      const { token, user } = await GoogleAuthService.login(idToken);
+      setAuth(token, user.role);
+    } catch (err: any) {
+      Alert.alert('Google Login Failed', err.message || 'Something went wrong');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  // Load saved credentials
+  useEffect(() => {
+    const loadSaved = async () => {
+      const savedEmail = await AsyncStorage.getItem('savedEmail');
+      const savedPassword = await AsyncStorage.getItem('savedPassword');
+      if (savedEmail && savedPassword) {
+        setEmail(savedEmail);
+        setPassword(savedPassword);
+        setRememberMe(true);
       }
     };
-    loadSavedCredentials();
+    loadSaved();
   }, []);
 
-const handleLogin = async () => {
-  setLoading(true);
-
-  try {
-    const { token, role } = await AuthService.login(email, password);
-    setAuth(token, role);
-
-    if (rememberMe) {
-      await AsyncStorage.setItem('savedEmail', email);
-      await AsyncStorage.setItem('savedPassword', password);
-    } else {
-      await AsyncStorage.removeItem('savedEmail');
-      await AsyncStorage.removeItem('savedPassword');
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Missing Fields', 'Please enter email and password');
+      return;
     }
 
-  } catch (err: any) {
-    // 🔍 Log backend error to console
-    console.error('Login error:', err);
+    setLoading(true);
+    try {
+      const { token, role } = await AuthService.login(email, password);
+      setAuth(token, role);
 
-    if (err.status === 401) {
+      if (rememberMe) {
+        await AsyncStorage.setItem('savedEmail', email);
+        await AsyncStorage.setItem('savedPassword', password);
+      } else {
+        await AsyncStorage.removeItem('savedEmail');
+        await AsyncStorage.removeItem('savedPassword');
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
       Alert.alert('Login Failed', 'Email or password is incorrect');
-    } else {
-      Alert.alert('Server Error', 'Something went wrong. Please try again later.');
+    } finally {
+      setLoading(false);
     }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-
+  const handleGoogleLogin = () => {
+    promptAsync();
+  };
 
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: Colors.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 20}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContainer}
-          keyboardShouldPersistTaps="handled"
-        >
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
           <View style={styles.container}>
+            {/* Logo */}
             <Image
               source={require('../../assets/logo.png')}
               style={styles.logo}
             />
-            <Text
-              style={{
-       fontSize: 28, // increase size
-    fontWeight: 'bold',
-    color: Colors.primary,
-    textAlign: 'center', // center horizontally
-    marginBottom: 30,
-              }}
-            >
+
+            <Text style={styles.title}>
               JP-MM Engineering Dictionary
             </Text>
 
-            {/* Email Label */}
-            <Text style={styles.label}>Email </Text>
+            {/* Email */}
+            <Text style={styles.label}>Email</Text>
             <TextInput
+              style={styles.input}
               placeholder="Email"
               placeholderTextColor={Colors.textSecondary}
-              style={styles.input}
               value={email}
               onChangeText={setEmail}
-              keyboardType="email-address"
               autoCapitalize="none"
+              keyboardType="email-address"
             />
 
-            {/* Password Label */}
+            {/* Password */}
             <Text style={styles.label}>Password</Text>
             <View style={styles.passwordContainer}>
               <TextInput
+                style={styles.inputPassword}
                 placeholder="Password"
                 placeholderTextColor={Colors.textSecondary}
-                style={styles.inputPassword}
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
               />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeIcon}
-              >
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons
                   name={showPassword ? 'eye-off' : 'eye'}
-                  size={24}
+                  size={22}
                   color={Colors.textSecondary}
                 />
               </TouchableOpacity>
             </View>
 
-            {/* Remember Me left-aligned */}
+            {/* Remember Me */}
             <TouchableOpacity
               style={styles.rememberContainer}
               onPress={() => setRememberMe(!rememberMe)}
@@ -153,6 +177,7 @@ const handleLogin = async () => {
               <Text style={styles.rememberText}>Remember Me</Text>
             </TouchableOpacity>
 
+            {/* Login Button */}
             <TouchableOpacity
               style={styles.button}
               onPress={handleLogin}
@@ -163,22 +188,29 @@ const handleLogin = async () => {
               </Text>
             </TouchableOpacity>
 
+            {/* Google Sign In */}
+            <TouchableOpacity
+              style={[styles.button, styles.googleButton]}
+              onPress={handleGoogleLogin}
+              disabled={!request || googleLoading}
+            >
+              <View style={styles.googleContent}>
+                <AntDesign name="google" size={20} color={Colors.primary} />
+                <Text style={styles.googleText}>
+                  {googleLoading ? ' Signing in...' : ' Sign in with Google'}
+                </Text>
+              </View>
+            </TouchableOpacity>
 
+            {/* Register */}
             <TouchableOpacity
               onPress={() => navigation.navigate('Register')}
               style={{ marginTop: 20 }}
             >
               <Text style={{ color: Colors.primary }}>
-                Don't have an account? Register
+                Don’t have an account? Register
               </Text>
             </TouchableOpacity>
-{/* 
-            <TouchableOpacity
-              onPress={() => navigation.navigate('ForgotPassword')}
-              style={{ marginTop: 10 }}
-            >
-              <Text style={{ color: Colors.primary }}>Forgot Password?</Text>
-            </TouchableOpacity> */}
           </View>
         </ScrollView>
       </TouchableWithoutFeedback>
@@ -186,37 +218,41 @@ const handleLogin = async () => {
   );
 }
 
+/* ================= STYLES ================= */
+
 const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
   },
   container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
     padding: 20,
+    alignItems: 'center',
   },
   logo: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    marginBottom: 20,
+    marginBottom: 15,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: Colors.primary,
+    marginBottom: 30,
+    textAlign: 'center',
   },
   label: {
     alignSelf: 'flex-start',
-    marginBottom: 5,
     color: Colors.primary,
-    fontSize: 16,
-    fontWeight: '500',
+    marginBottom: 5,
     marginLeft: 5,
   },
   input: {
     width: '100%',
     height: 50,
-    borderColor: Colors.grayBorder,
     borderWidth: 1,
+    borderColor: Colors.grayBorder,
     borderRadius: 10,
     paddingHorizontal: 15,
     marginBottom: 15,
@@ -224,23 +260,30 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   passwordContainer: {
-    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    borderColor: Colors.grayBorder,
+    width: '100%',
     borderWidth: 1,
+    borderColor: Colors.grayBorder,
     borderRadius: 10,
-    backgroundColor: Colors.white,
+    paddingHorizontal: 15,
     marginBottom: 10,
+    backgroundColor: Colors.white,
   },
   inputPassword: {
     flex: 1,
     height: 50,
-    paddingHorizontal: 15,
     color: Colors.primary,
   },
-  eyeIcon: {
-    paddingHorizontal: 10,
+  rememberContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginBottom: 20,
+  },
+  rememberText: {
+    marginLeft: 8,
+    color: Colors.primary,
   },
   button: {
     width: '100%',
@@ -250,15 +293,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
   },
-  rememberContainer: {
+  googleButton: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DBDBDB',
+  },
+  googleContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start', // left align
-    marginBottom: 20,
   },
-  rememberText: {
-    marginLeft: 8,
-    color: Colors.primary,
+  googleText: {
     fontSize: 16,
+    fontWeight: '500',
+    color: '#444',
   },
 });
