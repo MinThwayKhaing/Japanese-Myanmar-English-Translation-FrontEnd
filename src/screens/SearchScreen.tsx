@@ -28,29 +28,36 @@ export default function SearchScreen() {
   const [loading, setLoading] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [showDrawer, setShowDrawer] = useState(false);
+  const [searchesLeft, setSearchesLeft] = useState<number | null>(null);
 
   const isMounted = useRef(true);
   const inputRef = useRef<TextInput>(null);
 
-  /* ---------------- FAVORITES ---------------- */
+  /* ---------------- FAVORITES + SEARCHES LEFT ---------------- */
   useFocusEffect(
     React.useCallback(() => {
       let active = true;
 
-      const fetchFavorites = async () => {
+      const fetchData = async () => {
         const token = await AsyncStorage.getItem('token');
         if (!token) return;
         try {
-          const favs = await UserService.getFavorites(token);
+          const [favs, profile] = await Promise.all([
+            UserService.getFavorites(token),
+            UserService.getProfile(token),
+          ]);
           if (active && Array.isArray(favs)) {
-            setFavorites(favs.map((f: any) => f.id));
+            setFavorites(favs.map((f: any) => f?.id).filter(Boolean));
+          }
+          if (active && profile?.subscription?.searchesLeft != null) {
+            setSearchesLeft(profile.subscription.searchesLeft);
           }
         } catch (err) {
           console.error(err);
         }
       };
 
-      fetchFavorites();
+      fetchData();
       return () => {
         active = false;
       };
@@ -68,7 +75,8 @@ export default function SearchScreen() {
       if (!isMounted.current) return;
       setLoading(true);
       try {
-        const data = await WordService.searchWords(query);
+        const token = await AsyncStorage.getItem('token');
+        const data = await WordService.searchWords(query, token || undefined);
         if (isMounted.current) {
           setResults(Array.isArray(data) ? data : []);
         }
@@ -142,6 +150,10 @@ export default function SearchScreen() {
         </TouchableOpacity>
       </View>
 
+      {searchesLeft !== null && (
+        <Text style={styles.searchesLeftText}>Words left: {searchesLeft}</Text>
+      )}
+
       {/* ✍️ Kanji Drawer */}
       {showDrawer && <KanjiDrawer onRecognized={handleKanjiRecognized} />}
 
@@ -153,7 +165,7 @@ export default function SearchScreen() {
 
       <FlatList
         data={results}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item?.id || Math.random().toString()}
         renderItem={({ item }) => {
           const isFav = favorites.includes(item.id);
           return (
@@ -207,6 +219,12 @@ const styles = StyleSheet.create({
     top: 10,
   },
 
+  searchesLeftText: {
+    textAlign: 'center',
+    color: Colors.grayLight,
+    fontSize: 13,
+    marginBottom: 6,
+  },
   noResult: { textAlign: 'center', color: '#999', marginTop: 20 },
   card: {
     backgroundColor: '#fff',

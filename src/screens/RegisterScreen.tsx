@@ -30,6 +30,9 @@ export default function RegisterScreen({ navigation }: any) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     webClientId: GOOGLE_WEB_CLIENT_ID,
@@ -38,51 +41,125 @@ export default function RegisterScreen({ navigation }: any) {
   });
 
   useEffect(() => {
+    console.log('[RegisterScreen] Google auth response:', response?.type);
     if (response?.type === 'success') {
-      const idToken = response.params.id_token;
+      const idToken =
+        response.authentication?.idToken ?? response.params?.id_token;
+      console.log('[RegisterScreen] Got ID token:', !!idToken);
       if (idToken) {
         handleGoogleRegisterWithToken(idToken);
       } else {
+        console.error('[RegisterScreen] No ID token in response');
         Alert.alert('Error', 'Failed to get ID token from Google');
       }
+    } else if (response?.type === 'error') {
+      console.error('[RegisterScreen] Google auth error:', response.error);
     }
   }, [response]);
 
   const handleGoogleRegisterWithToken = async (idToken: string) => {
+    if (!idToken) {
+      Alert.alert('Error', 'Invalid Google token');
+      return;
+    }
+    console.log('[RegisterScreen] Sending Google ID token to backend for register');
     setGoogleLoading(true);
     try {
-      await GoogleAuthService.register(idToken);
+      const result = await GoogleAuthService.register(idToken);
+      if (!result || !result.token) {
+        Alert.alert('Error', 'Registration failed: invalid server response');
+        return;
+      }
+      console.log('[RegisterScreen] Google register success');
       Alert.alert('Success', 'Account created successfully with Google');
       navigation.navigate('Login');
     } catch (err: any) {
-      Alert.alert('Google Registration Failed', err.message || 'Something went wrong');
+      console.error('[RegisterScreen] Google register failed:', err?.message);
+      Alert.alert('Google Registration Failed', err?.message || 'Something went wrong');
     } finally {
       setGoogleLoading(false);
     }
   };
 
   const handleGoogleLogin = () => {
+    console.log('[RegisterScreen] Google sign-up button pressed');
     promptAsync();
   };
 
+  const handlePasswordFocus = () => {
+    if (!email?.trim()) {
+      setEmailError("Email can't be null");
+    }
+  };
+
+  const handleEmailChange = (text: string) => {
+    setEmail(text);
+    if (text.trim()) {
+      setEmailError('');
+    }
+  };
+
+  const handlePasswordChange = (text: string) => {
+    setPassword(text);
+    if (text) {
+      setPasswordError('');
+    }
+  };
+
+  const handleConfirmPasswordChange = (text: string) => {
+    setConfirmPassword(text);
+    if (text) {
+      setConfirmPasswordError('');
+    }
+  };
+
+  const handleConfirmPasswordFocus = () => {
+    if (!password) {
+      setPasswordError("Password can't be null");
+    }
+  };
+
   const handleRegister = async () => {
-    if (!email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill all fields');
+    if (!email?.trim()) {
+      setEmailError("Email can't be null");
       return;
     }
+    setEmailError('');
+    let hasError = false;
+    if (!password) {
+      setPasswordError("Password can't be null");
+      hasError = true;
+    } else {
+      setPasswordError('');
+    }
+    if (!confirmPassword) {
+      setConfirmPasswordError("Confirm Password can't be null");
+      hasError = true;
+    } else {
+      setConfirmPasswordError('');
+    }
+    if (hasError) return;
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      setConfirmPasswordError('Passwords do not match');
       return;
     }
 
+    const trimmedEmail = email.trim();
+    console.log('[RegisterScreen] Email register attempt for:', trimmedEmail);
     setLoading(true);
     try {
-      await AuthService.register(email, password);
+      const result = await AuthService.register(trimmedEmail, password);
+      if (!result) {
+        Alert.alert('Error', 'Registration failed: no response from server');
+        return;
+      }
+      console.log('[RegisterScreen] Email register success');
       Alert.alert('Success', 'Account created successfully');
       navigation.navigate('Login');
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Something went wrong');
+      console.error('[RegisterScreen] Email register failed:', err?.message);
+      Alert.alert('Error', err?.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -97,25 +174,27 @@ export default function RegisterScreen({ navigation }: any) {
       {/* Email */}
       <Text style={styles.label}>Email</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, emailError ? { borderColor: 'red', marginBottom: 4 } : {}]}
         placeholder="Email"
         placeholderTextColor={Colors.textSecondary}
         keyboardType="email-address"
         autoCapitalize="none"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={handleEmailChange}
       />
+      {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
 
       {/* Password */}
       <Text style={styles.label}>Password</Text>
-      <View style={styles.passwordContainer}>
+      <View style={[styles.passwordContainer, passwordError ? { borderColor: 'red', marginBottom: 4 } : {}]}>
         <TextInput
           style={styles.inputPassword}
           placeholder="Password"
           placeholderTextColor={Colors.textSecondary}
           secureTextEntry={!showPassword}
           value={password}
-          onChangeText={setPassword}
+          onChangeText={handlePasswordChange}
+          onFocus={handlePasswordFocus}
         />
         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
           <Ionicons
@@ -125,17 +204,19 @@ export default function RegisterScreen({ navigation }: any) {
           />
         </TouchableOpacity>
       </View>
+      {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
 
       {/* Confirm Password */}
       <Text style={styles.label}>Confirm Password</Text>
-      <View style={styles.passwordContainer}>
+      <View style={[styles.passwordContainer, confirmPasswordError ? { borderColor: 'red', marginBottom: 4 } : {}]}>
         <TextInput
           style={styles.inputPassword}
           placeholder="Confirm Password"
           placeholderTextColor={Colors.textSecondary}
           secureTextEntry={!showConfirmPassword}
           value={confirmPassword}
-          onChangeText={setConfirmPassword}
+          onChangeText={handleConfirmPasswordChange}
+          onFocus={handleConfirmPasswordFocus}
         />
         <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
           <Ionicons
@@ -145,6 +226,7 @@ export default function RegisterScreen({ navigation }: any) {
           />
         </TouchableOpacity>
       </View>
+      {confirmPasswordError ? <Text style={styles.errorText}>{confirmPasswordError}</Text> : null}
 
       {/* Register Button */}
       <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
@@ -255,5 +337,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: Colors.primary,
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 13,
+    alignSelf: 'flex-start',
+    marginLeft: 5,
+    marginBottom: 10,
   },
 });

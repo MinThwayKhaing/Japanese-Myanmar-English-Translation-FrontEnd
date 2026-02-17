@@ -40,6 +40,8 @@ export default function LoginScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     webClientId: GOOGLE_WEB_CLIENT_ID,
@@ -48,22 +50,35 @@ export default function LoginScreen({ navigation }: any) {
   });
 
   useEffect(() => {
+    console.log('[LoginScreen] Google auth response:', response?.type);
     if (response?.type === 'success') {
-      const idToken = response.params.id_token;
+      const idToken =
+        response.authentication?.idToken ?? response.params?.id_token;
+      console.log('[LoginScreen] Got ID token:', !!idToken);
       if (idToken) {
         handleGoogleLoginWithToken(idToken);
       } else {
+        console.error('[LoginScreen] No ID token in response');
         Alert.alert('Error', 'Failed to get ID token from Google');
       }
+    } else if (response?.type === 'error') {
+      console.error('[LoginScreen] Google auth error:', response.error);
     }
   }, [response]);
 
   const handleGoogleLoginWithToken = async (idToken: string) => {
+    console.log('[LoginScreen] Sending Google ID token to backend for login');
     setGoogleLoading(true);
     try {
       const { token, user } = await GoogleAuthService.login(idToken);
+      if (!token || !user) {
+        Alert.alert('Error', 'Invalid response from server');
+        return;
+      }
+      console.log('[LoginScreen] Google login success, setting auth');
       setAuth(token, user.role);
     } catch (err: any) {
+      console.error('[LoginScreen] Google login failed:', err.message);
       Alert.alert('Google Login Failed', err.message || 'Something went wrong');
     } finally {
       setGoogleLoading(false);
@@ -84,15 +99,44 @@ export default function LoginScreen({ navigation }: any) {
     loadSaved();
   }, []);
 
+  const handlePasswordFocus = () => {
+    if (!email?.trim()) {
+      setEmailError("Email can't be null");
+    }
+  };
+
+  const handleEmailChange = (text: string) => {
+    setEmail(text);
+    if (text.trim()) {
+      setEmailError('');
+    }
+  };
+
+  const handlePasswordChange = (text: string) => {
+    setPassword(text);
+    if (text) {
+      setPasswordError('');
+    }
+  };
+
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Missing Fields', 'Please enter email and password');
+    if (!email?.trim()) {
+      setEmailError("Email can't be null");
       return;
     }
+    setEmailError('');
+    if (!password) {
+      setPasswordError("Password can't be null");
+      return;
+    }
+    setPasswordError('');
 
+    const trimmedEmail = email.trim();
+    console.log('[LoginScreen] Email login attempt for:', trimmedEmail);
     setLoading(true);
     try {
-      const { token, role } = await AuthService.login(email, password);
+      const { token, role } = await AuthService.login(trimmedEmail, password);
+      console.log('[LoginScreen] Email login success, setting auth');
       setAuth(token, role);
 
       if (rememberMe) {
@@ -103,7 +147,7 @@ export default function LoginScreen({ navigation }: any) {
         await AsyncStorage.removeItem('savedPassword');
       }
     } catch (err: any) {
-      console.error('Login error:', err);
+      console.error('[LoginScreen] Email login failed:', err.message);
       Alert.alert('Login Failed', 'Email or password is incorrect');
     } finally {
       setLoading(false);
@@ -135,25 +179,27 @@ export default function LoginScreen({ navigation }: any) {
             {/* Email */}
             <Text style={styles.label}>Email</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, emailError ? { borderColor: 'red', marginBottom: 4 } : {}]}
               placeholder="Email"
               placeholderTextColor={Colors.textSecondary}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={handleEmailChange}
               autoCapitalize="none"
               keyboardType="email-address"
             />
+            {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
 
             {/* Password */}
             <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordContainer}>
+            <View style={[styles.passwordContainer, passwordError ? { borderColor: 'red', marginBottom: 4 } : {}]}>
               <TextInput
                 style={styles.inputPassword}
                 placeholder="Password"
                 placeholderTextColor={Colors.textSecondary}
                 secureTextEntry={!showPassword}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={handlePasswordChange}
+                onFocus={handlePasswordFocus}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons
@@ -163,19 +209,25 @@ export default function LoginScreen({ navigation }: any) {
                 />
               </TouchableOpacity>
             </View>
+            {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
 
-            {/* Remember Me */}
-            <TouchableOpacity
-              style={styles.rememberContainer}
-              onPress={() => setRememberMe(!rememberMe)}
-            >
-              <Ionicons
-                name={rememberMe ? 'checkbox' : 'square-outline'}
-                size={22}
-                color={Colors.primary}
-              />
-              <Text style={styles.rememberText}>Remember Me</Text>
-            </TouchableOpacity>
+            {/* Remember Me + Forgot Password */}
+            <View style={styles.rememberForgotRow}>
+              <TouchableOpacity
+                style={styles.rememberContainer}
+                onPress={() => setRememberMe(!rememberMe)}
+              >
+                <Ionicons
+                  name={rememberMe ? 'checkbox' : 'square-outline'}
+                  size={22}
+                  color={Colors.primary}
+                />
+                <Text style={styles.rememberText}>Remember Me</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+                <Text style={styles.forgotText}>Forgot Password?</Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Login Button */}
             <TouchableOpacity
@@ -275,15 +327,25 @@ const styles = StyleSheet.create({
     height: 50,
     color: Colors.primary,
   },
+  rememberForgotRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 20,
+  },
   rememberContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    marginBottom: 20,
   },
   rememberText: {
     marginLeft: 8,
     color: Colors.primary,
+  },
+  forgotText: {
+    color: Colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
   },
   button: {
     width: '100%',
@@ -306,5 +368,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#444',
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 13,
+    alignSelf: 'flex-start',
+    marginLeft: 5,
+    marginBottom: 10,
   },
 });

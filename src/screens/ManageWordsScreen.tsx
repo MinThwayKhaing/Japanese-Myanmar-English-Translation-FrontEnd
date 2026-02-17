@@ -57,7 +57,9 @@ useFocusEffect(
       const storedToken = await AsyncStorage.getItem('token');
       if (isActive) {
         setToken(storedToken);
-        fetchWords(1, query, storedToken || '');
+        if (storedToken) {
+          fetchWords(1, query, storedToken);
+        }
       }
     };
 
@@ -86,8 +88,8 @@ useFocusEffect(
         authToken
       );
 
-      if (Array.isArray(data.words)) {
-        
+      if (data && Array.isArray(data.words)) {
+
         setWords(pageNumber === 1 ? data.words : [...words, ...data.words]);
         setHasMore(data.hasMore);
           setTotalCount(data.totalCount || 0);

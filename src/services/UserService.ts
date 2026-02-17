@@ -16,7 +16,7 @@ export const UserService = {
         headers: { Authorization: `Bearer ${token}` },
       }
     );
-    return res.data;
+    return res?.data ?? null;
   },
 
   /**
@@ -27,7 +27,7 @@ export const UserService = {
     const res = await axiosInstance.get(`${API_BASE_URL}/users/favorites`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    return res.data;
+    return res?.data ?? [];
   },
 
   /**
@@ -43,13 +43,13 @@ export const UserService = {
         headers: { Authorization: `Bearer ${token}` },
       }
     );
-    return res.data;
+    return res?.data ?? null;
   },
 getProfile: async (token: string) => {
     const res = await axiosInstance.get(`${API_BASE_URL}/users/profile`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    return res.data;
+    return res?.data ?? null;
   },
   /**
    * Remove word from favorites
@@ -61,7 +61,7 @@ getProfile: async (token: string) => {
       headers: { Authorization: `Bearer ${token}` },
       data: { wordId }, // axios DELETE supports data payload
     });
-    return res.data;
+    return res?.data ?? null;
   },
 
   /**
@@ -77,7 +77,7 @@ getProfile: async (token: string) => {
         headers: { Authorization: `Bearer ${token}` },
       }
     );
-    return res.data;
+    return res?.data ?? { favorites: [], hasMore: false };
   },
 
   /**
@@ -88,7 +88,7 @@ getProfile: async (token: string) => {
     const res = await axiosInstance.get(`${API_BASE_URL}/users/subscribed`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    return res.data;
+    return res?.data ?? [];
   },
   /**
  * Delete own user account
@@ -101,7 +101,34 @@ deleteMe: async (token: string) => {
       headers: { Authorization: `Bearer ${token}` },
     }
   );
-  return res.data;
+  return res?.data ?? null;
 },
+
+  /**
+   * Search users by email (admin)
+   */
+  searchUsers: async (query: string, token: string) => {
+    const res = await axiosInstance.get(
+      `${API_BASE_URL}/admin/users?q=${encodeURIComponent(query)}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    return res?.data ?? [];
+  },
+
+  /**
+   * Update a user's searchesLeft count (admin)
+   */
+  updateSearchesLeft: async (userId: string, searchesLeft: number, token: string) => {
+    const res = await axiosInstance.put(
+      `${API_BASE_URL}/admin/users/searches-left`,
+      { userId, searchesLeft },
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    return res?.data ?? null;
+  },
 
 };

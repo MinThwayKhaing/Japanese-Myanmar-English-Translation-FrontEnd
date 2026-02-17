@@ -23,13 +23,13 @@ import { Ionicons } from '@expo/vector-icons';
 const EditWordScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
-  const { word } = route.params;
+  const { word } = route.params ?? {};
 
-  const [english, setEnglish] = useState(word.english);
-  const [japanese, setJapanese] = useState(word.japanese || '');
-  const [myanmar, setMyanmar] = useState(word.myanmar || '');
-  const [subTerm, setSubTerm] = useState(word.subTerm || '');
-  const [image, setImage] = useState<string | null>(word.imageURL || null);
+  const [english, setEnglish] = useState(word?.english || '');
+  const [japanese, setJapanese] = useState(word?.japanese || '');
+  const [myanmar, setMyanmar] = useState(word?.myanmar || '');
+  const [subTerm, setSubTerm] = useState(word?.subTerm || '');
+  const [image, setImage] = useState<string | null>(word?.imageURL || null);
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState<string | null>(null);
 
@@ -49,7 +49,7 @@ const EditWordScreen = () => {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: false,
       quality: 0.7,
     });
@@ -75,12 +75,16 @@ const EditWordScreen = () => {
       formData.append('subTerm', subTerm.trim());
 
       if (image && !image.startsWith('http')) {
-        const filename = image.split('/').pop()!;
+        const filename = image.split('/').pop() || 'image.jpg';
         const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : `image`;
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
         formData.append('image', { uri: image, name: filename, type } as any);
       }
 
+      if (!word?._id) {
+        Alert.alert('Error', 'Invalid word data.');
+        return;
+      }
       await WordService.updateWord(word._id, formData, token);
       Alert.alert('Success', 'Word updated successfully.', [
         { text: 'OK', onPress: () => navigation.goBack() },

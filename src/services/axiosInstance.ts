@@ -25,7 +25,11 @@ instance.interceptors.response.use(
 
       // Call the logout callback if provided
       if (logoutCallback) {
-        await logoutCallback();
+        try {
+          await logoutCallback();
+        } catch (e) {
+          console.error('Logout callback failed:', e);
+        }
       }
             return new Promise(() => {}); 
     }

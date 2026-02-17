@@ -67,6 +67,7 @@ const FavouriteScreen = () => {
       else setLoadingMore(true);
 
       const data = await UserService.getFavoritesPaginated(pageNumber, PAGE_LIMIT, token);
+      if (!data) return;
       const newFavs = Array.isArray(data.favorites) ? data.favorites : [];
 
       setFavorites(pageNumber === 1 ? newFavs : [...favorites, ...newFavs]);
@@ -132,7 +133,7 @@ const FavouriteScreen = () => {
         <FlatList
           data={favorites}
           renderItem={renderItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item?.id || Math.random().toString()}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
           ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#1A374D" /> : null}

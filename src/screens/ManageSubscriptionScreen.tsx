@@ -4,16 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/colors';
 import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AdminStackParamList } from '../navigation/types';
-
-type ManageSubscriptionNavProp = NativeStackNavigationProp<
-  AdminStackParamList,
-  'ManageSubscriptionScreen'
->;
 
 const ManageSubscriptionScreen = () => {
-  const navigation = useNavigation<ManageSubscriptionNavProp>();
+  const navigation = useNavigation<any>();
 
   return (
     <SafeAreaView style={styles.safeContainer}>

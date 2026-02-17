@@ -25,7 +25,7 @@ export default function WordDetailScreen() {
     const fetchWord = async () => {
       try {
         const data = await WordService.getWordByID(id);
-        setWord(data);
+        if (data) setWord(data);
       } catch (err) {
         console.error('Error loading word:', err);
       } finally {

@@ -74,9 +74,9 @@ const CreateWordScreen = () => {
     formData.append('myanmar', myanmar.trim());
 
     if (image) {
-      const filename = image.split('/').pop()!;
+      const filename = image.split('/').pop() || 'image.jpg';
       const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : `image`;
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
       formData.append('image', { uri: image, name: filename, type } as any);
     }
 

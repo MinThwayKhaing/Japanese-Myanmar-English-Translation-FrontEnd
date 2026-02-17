@@ -5,7 +5,7 @@ import { API_BASE_URL } from '../config';
 export const SubscriptionService = {
   getPrices: async () => {
     const res = await axiosInstance.get(`${API_BASE_URL}/subscriptions/prices`);
-    return res.data;
+    return res?.data ?? null;
   },
 
   updatePrices: async (
@@ -19,6 +19,6 @@ export const SubscriptionService = {
       { monthlyPrice, yearlyPrice, freeMonths },
       { headers: { Authorization: `Bearer ${token}` } }
     );
-    return res.data;
+    return res?.data ?? null;
   },
 };

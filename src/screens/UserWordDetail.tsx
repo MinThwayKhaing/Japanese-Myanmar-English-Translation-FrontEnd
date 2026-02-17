@@ -9,7 +9,11 @@ import {
   Image,
   Platform,
   StatusBar,
+  Modal,
+  Dimensions,
+  Linking,
 } from 'react-native';
+import ImageZoom from 'react-native-image-pan-zoom';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WordService, Word } from '../services/wordService';
@@ -28,6 +32,10 @@ export default function UserWordDetail() {
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [token, setToken] = useState<string | null>(null);
+  const [imageModalVisible, setImageModalVisible] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
+
+  const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
   useEffect(() => {
     const init = async () => {
@@ -41,12 +49,16 @@ export default function UserWordDetail() {
           UserService.getFavorites(savedToken),
         ]);
 
-        setWord(wordData);
+        if (wordData) setWord(wordData);
 
         const favList = Array.isArray(favoritesData) ? favoritesData : [];
-        setIsFavorite(favList.some((fav: any) => fav.id === id));
-      } catch (err) {
-        console.error('Failed to fetch word:', err);
+        setIsFavorite(favList.some((fav: any) => fav?.id === id));
+      } catch (err: any) {
+        if (err?.message === 'SEARCH_LIMIT_REACHED') {
+          setLimitReached(true);
+        } else {
+          console.error('Failed to fetch word:', err);
+        }
       } finally {
         setLoading(false);
       }
@@ -91,6 +103,32 @@ export default function UserWordDetail() {
     );
   }
 
+  if (limitReached) {
+    return (
+      <SafeAreaView style={styles.safeContainer}>
+        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={Colors.primary} />
+          </TouchableOpacity>
+          <Text style={styles.headerText}>Word Detail</Text>
+        </View>
+        <View style={styles.limitBanner}>
+          <Ionicons name="alert-circle-outline" size={28} color="#E63946" />
+          <Text style={styles.limitText}>
+            You have reached your daily usage limit. For continued access, please contact our support team.
+          </Text>
+          <TouchableOpacity
+            style={styles.contactButton}
+            onPress={() => Linking.openURL('https://www.facebook.com/share/17dbopheid/?mibextid=wwXIfr')}
+          >
+            <Text style={styles.contactButtonText}>Contact Support</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (!word) {
     return (
       <SafeAreaView style={styles.center}>
@@ -114,7 +152,12 @@ export default function UserWordDetail() {
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         <View style={styles.card}>
           {word.imageUrl ? (
-            <Image source={{ uri: word.imageUrl }} style={styles.image} />
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => setImageModalVisible(true)}
+            >
+              <Image source={{ uri: word.imageUrl }} style={styles.image} />
+            </TouchableOpacity>
           ) : (
             <View style={styles.noImageBox}>
               <Ionicons name="image-outline" size={60} color={Colors.grayLight} />
@@ -165,6 +208,44 @@ export default function UserWordDetail() {
           )}
         </View>
       </ScrollView>
+
+      {/* Fullscreen Zoomable Image Modal */}
+      <Modal
+        visible={imageModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setImageModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <TouchableOpacity
+            style={styles.modalCloseButton}
+            onPress={() => setImageModalVisible(false)}
+          >
+            <Ionicons name="close" size={30} color="#fff" />
+          </TouchableOpacity>
+
+          {/* @ts-ignore: children prop works at runtime */}
+          <ImageZoom
+            cropWidth={screenWidth}
+            cropHeight={screenHeight}
+            imageWidth={screenWidth}
+            imageHeight={screenHeight * 0.6}
+            minScale={1}
+            maxScale={5}
+            enableSwipeDown
+            onSwipeDown={() => setImageModalVisible(false)}
+          >
+            <Image
+              source={{ uri: word.imageUrl }}
+              style={{
+                width: screenWidth,
+                height: screenHeight * 0.6,
+              }}
+              resizeMode="contain"
+            />
+          </ImageZoom>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -241,5 +322,48 @@ const styles = StyleSheet.create({
   notFoundText: {
     fontSize: 18,
     color: Colors.grayLight,
+  },
+  limitBanner: {
+    backgroundColor: '#FFF3F3',
+    borderRadius: 12,
+    padding: 20,
+    margin: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FFCDD2',
+  },
+  limitText: {
+    fontSize: 15,
+    color: '#333',
+    textAlign: 'center',
+    marginTop: 10,
+    marginBottom: 14,
+    lineHeight: 22,
+  },
+  contactButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+  },
+  contactButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : 30,
+    right: 20,
+    zIndex: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    padding: 6,
   },
 });

@@ -32,21 +32,33 @@ export const WordService = {
         params: { q: query },
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
+      if (!res?.data) return [];
       if (Array.isArray(res.data)) return res.data;
       if (res.data?.words) return res.data.words;
       return [];
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.response?.status === 403 && err?.response?.data?.code === 'SEARCH_LIMIT_REACHED') {
+        throw new Error('SEARCH_LIMIT_REACHED');
+      }
       console.error('Error in searchWords:', err);
       return [];
     }
   },
 
   getWordByID: async (id: string, token?: string): Promise<Word> => {
-    const res = await axiosInstance.get(`${API_BASE_URL}/words/${id}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    });
-    console.log('getWordByID response data:', res.data);
-    return res.data;
+    try {
+      const res = await axiosInstance.get(`${API_BASE_URL}/words/${id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      console.log('getWordByID response data:', res.data);
+      if (!res?.data) throw new Error('Word not found');
+      return res.data;
+    } catch (err: any) {
+      if (err?.response?.status === 403 && err?.response?.data?.code === 'SEARCH_LIMIT_REACHED') {
+        throw new Error('SEARCH_LIMIT_REACHED');
+      }
+      throw err;
+    }
   },
 
   // New: Select one word (shared user/admin)
@@ -54,6 +66,7 @@ export const WordService = {
     const res = await axiosInstance.get(`${API_BASE_URL}/words/selectone/${id}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
+    if (!res?.data) throw new Error('Word not found');
     return res.data;
   },
 
@@ -62,6 +75,7 @@ export const WordService = {
       params: { page, limit, q: query },
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
+    if (!res?.data) return { words: [], hasMore: false, currentPage: page, totalCount: 0 };
     return res.data;
   },
 
@@ -86,6 +100,24 @@ updateWord: async (id: string, formData: FormData, token: string): Promise<any> 
 },
 
 
+  getDuplicateWords: async (page = 1, limit = 10, token: string, query = '') => {
+    const res = await axiosInstance.get(`${API_BASE_URL}/admin/words/duplicates`, {
+      params: { page, limit, q: query },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res?.data ?? { groups: [], totalGroups: 0, hasMore: false, currentPage: page };
+  },
+
+  setWordIgnore: async (wordId: string, ignore: boolean, token: string): Promise<any> => {
+    const res = await axiosInstance.put(`${API_BASE_URL}/admin/words/ignore`, {
+      wordId,
+      ignore,
+    }, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  },
+
   deleteWord: async (id: string, token: string): Promise<void> => {
     console.log('Deleting word with ID:', id);
     await axiosInstance.delete(`${API_BASE_URL}/words/${id}`, {
@@ -93,14 +125,14 @@ updateWord: async (id: string, formData: FormData, token: string): Promise<any> 
     });
   },
 
-    // New: Upload Excel file to create words
+    // Upload Excel file to create words (supports 100K+ rows)
   uploadExcelWords: async (file: {
       uri: string;
       name: string;
       type: string;
       content?: string; // base64 content
-    }, token: string): Promise<{ message: string }> => {
-      
+    }, token: string): Promise<{ message: string; total?: number }> => {
+
       if (file.content) {
         // Method 1: Upload as base64
         const res = await axiosInstance.post(
@@ -115,12 +147,12 @@ updateWord: async (id: string, formData: FormData, token: string): Promise<any> 
               Authorization: `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
-            timeout: 60000,
+            timeout: 600000, // 10 minutes for large files
           }
         );
         return res.data;
       } else {
-        // Method 2: Fallback to FormData (for backward compatibility)
+        // Method 2: Fallback to FormData
         const formData = new FormData();
         formData.append('file', {
           uri: file.uri,
@@ -136,7 +168,7 @@ updateWord: async (id: string, formData: FormData, token: string): Promise<any> 
               Authorization: `Bearer ${token}`,
               'Content-Type': 'multipart/form-data',
             },
-            timeout: 60000,
+            timeout: 600000, // 10 minutes for large files
           }
         );
         return res.data;

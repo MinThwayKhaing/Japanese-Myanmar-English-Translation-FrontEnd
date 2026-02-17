@@ -5,13 +5,12 @@ export type AdminStackParamList = {
   AdminPanel: undefined;
   ManageWordsScreen: undefined;
   EditWordScreen: { word: Word };
-  ViewUsersScreen: undefined;
-  ManageSubscriptionScreen: undefined;
+  UpdateCustomerWordsScreen: undefined;
+  DuplicateSyncScreen: undefined;
 };
 
 export type MainTabParamList = {
   Search: undefined;
   Favourite: undefined;
-  Subscribe: undefined;
   Profile: undefined;
 };
